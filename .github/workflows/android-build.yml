@@ -47,7 +47,29 @@ jobs:
 
       - name: Build debug APK
         working-directory: extracted-project/PhotoEditor
-        run: gradle :app:assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --stacktrace --console=plain 2>&1 | tee build.log
+
+      # Prints only the real compile errors (lines starting with "e:") in a short, readable list.
+      - name: Show compile errors
+        if: failure()
+        working-directory: extracted-project/PhotoEditor
+        shell: bash
+        run: |
+          echo "===== COMPILE ERRORS ====="
+          grep -E '^e: ' build.log | sed -E 's#file:///[^ ]*/photoeditor/##' | sort -u | head -150 || true
+          echo "===== GRADLE FAILURE ====="
+          grep -A6 'What went wrong' build.log | head -30 || true
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: extracted-project/PhotoEditor/build.log
+          if-no-files-found: ignore
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -55,4 +77,3 @@ jobs:
           name: MoKnight-PhotoEditor-debug
           path: extracted-project/PhotoEditor/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          
